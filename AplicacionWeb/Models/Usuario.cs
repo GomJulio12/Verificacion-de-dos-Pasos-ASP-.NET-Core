@@ -14,4 +14,5 @@ public partial class Usuario
     public string? Correo { get; set; }
 
     public string? Password { get; set; }
+    public bool TwoFactorEnabled { get; set; }
 }

@@ -56,6 +56,74 @@ namespace AplicacionWeb.Controllers
             return View();
         }
 
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> Register(Usuario modelo)
+        {
+            // Verificar si los datos de registro son nulos
+            if (modelo == null || string.IsNullOrEmpty(modelo.Nombre) || string.IsNullOrEmpty(modelo.Password))
+            {
+                ViewData["Mensaje"] = "Por favor, complete todos los campos.";
+                return View();
+            }
+
+            // Procesar el registro si los datos no son nulos
+            modelo.Password = EncriptarPassword(modelo.Password);
+
+            Usuario usuario_creado = await _usuarioServicio.SaveUsuario(modelo);
+
+            if (usuario_creado.IdUsuario > 0)
+                return RedirectToAction("Login", "Auth");
+
+            ViewData["Mensaje"] = "No se pudo crear el usuario";
+            return View();
+        }
+
+        public IActionResult Login()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Login(string correo, string password)
+        {
+            // Verificar si los datos de inicio de sesión son nulos o vacíos
+            if (string.IsNullOrEmpty(correo) || string.IsNullOrEmpty(password))
+            {
+                ViewData["Mensaje"] = "Por favor, ingrese correo y contraseña.";
+                return View();
+            }
+
+            Usuario usuario_encontrado = await _usuarioServicio.GetUsuario(correo, EncriptarPassword(password));
+
+            if (usuario_encontrado == null)
+            {
+                ViewData["Mensaje"] = "No se encontraron coincidencias";
+                return View();
+            }
+
+            List<Claim> claims = new List<Claim>() {
+        new Claim(ClaimTypes.Name, usuario_encontrado.Nombreusuario)
+    };
+
+            ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            AuthenticationProperties properties = new AuthenticationProperties()
+            {
+                AllowRefresh = true
+            };
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                properties
+            );
+
+            return RedirectToAction("Index", "Home");
+        }
+
+
         //METODO DONDE HACE LA ENCRIPTACION
         public string EncriptarPassword(string cadena)
         {
@@ -73,58 +141,6 @@ namespace AplicacionWeb.Controllers
                 }
             }
             return EncriptarTexto;
-        }
-
-
-        [HttpPost]
-        public async Task<IActionResult> Register(Usuario modelo)
-        {
-            modelo.Password = EncriptarPassword(modelo.Password);
-
-            Usuario usuario_creado = await _usuarioServicio.SaveUsuario(modelo);
-
-            if (usuario_creado.IdUsuario > 0)
-                return RedirectToAction("Login", "Auth");
-
-            ViewData["Mensaje"] = "No se pudo crear el usuario";
-            return View();
-        }
-
-
-        public IActionResult Login()
-        {
-            return View();
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Login(string correo, string password)
-        {
-
-            Usuario usuario_encontrado = await _usuarioServicio.GetUsuario(correo, EncriptarPassword(password));
-
-            if (usuario_encontrado == null)
-            {
-                ViewData["Mensaje"] = "No se encontraron coincidencias";
-                return View();
-            }
-
-            List<Claim> claims = new List<Claim>() {
-                new Claim(ClaimTypes.Name, usuario_encontrado.Nombreusuario)
-            };
-
-            ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            AuthenticationProperties properties = new AuthenticationProperties()
-            {
-                AllowRefresh = true
-            };
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(claimsIdentity),
-                properties
-                );
-
-            return RedirectToAction("Index", "Home");
         }
     }
 }
